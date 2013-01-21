@@ -47,9 +47,12 @@ The main design goals were:
 Internally, bitfield achieves this using a page-compressed 1-d bitmap.  
 
 Within a page, a number is recorded as being present in the set by setting the n-th bit to 1.
-I.e. the set([1]) is recorded as 00000001b, while set([1,4]) would be 00001001b.
+I.e. the set([1]) is recorded as ...00000010b, while set([1,4]) would be ...00010010b.
 
 This works well for small sets, but the size of the bitfield tends towards (highest set member)/8 bytes as the largest number in the set increases. 
 
 To counter this, the bit field is split into chunks of 1 page (usually 4k).  If a particular page is empty(no set members in that range) or full, 
 then the bitfield is discarded, and represented by an EMPTY or FULL flag.
+
+To improve lookup times and simplify set comparison, the bitfield always indexes items from 0.  
+Therefore, a set with a single item of 1,000,000,000 isn't going to be as fast as it could be.  This was an intentional design decision.
