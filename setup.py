@@ -22,7 +22,6 @@ setup(
     author_email = "stestagg@gmail.com",
 
     url = "http://github.com/stestagg/bitfield",
-    include_package_data = True,
 
     classifiers = [
         'Development Status :: 4 - Beta',
