@@ -14,7 +14,7 @@ ext_modules = [
 
 setup(
     name = "bitfield",
-    version = "1.0",
+    version = "1.1",
     license = "BSD",
 
     description = "A Cython fast compressed number set",
