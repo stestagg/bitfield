@@ -19,6 +19,18 @@ Usage
 >>> second.add(10000)
 >>> second.pickle()
 'BZ:x\x9cca@\x00\x01\x86Q0\nF\xc1(\x18N\x80\x11\x00e\xe0\x00\x16'
+
+>>> large=bitfield.Bitfield(random.sample(xrange(1000000), 500000)) # 500,000 items, randomly distributed
+>>> len(large)
+500000
+>>> len(large.pickle())
+125049  # 122KB
+
+>>> large=bitfield.Bitfield(xrange(1000000)) # 1 million items, all sequential
+>>> len(large)
+1000000
+>>> len(large.pickle())
+147 # <150 bytes
 ```
 
 Bitfields support most of the same operations/usage as regular sets, see the tests for examples.
