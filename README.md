@@ -3,6 +3,13 @@ bitfield
 
 A Cython implemented fast positive integer set implementation, optimised for sets of sequential numbers.
 
+Installation
+---------
+
+```
+$ sudo easy_install bitfield
+```
+
 Usage
 -----
 
