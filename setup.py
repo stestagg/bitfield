@@ -31,6 +31,8 @@ setup(
         'Programming Language :: Python',
     ],
 
+    package_data = {"Cython": ["cimpl/*.pyx"]},
+
     cmdclass = {"build_ext": build_ext},
     ext_modules = ext_modules,
 )
