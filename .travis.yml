@@ -6,4 +6,6 @@ python:
 install: 
  - pip install cython
  - python setup.py install
-script: nosetests tests
+
+script: 
+ - nosetests test
