@@ -3,6 +3,8 @@ bitfield [![Build Status](https://travis-ci.org/stestagg/bitfield.png)](https://
 
 A Cython implemented fast positive integer set implementation, optimised for sets of sequential numbers.
 
+__WARNING__ : The serialisation mechanism is not currently portable,  This will be fixed soon
+
 Installation
 ---------
 
