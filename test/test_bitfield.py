@@ -1,7 +1,10 @@
 #!/usr/bin/python
 
+from __future__ import with_statement
+
 # For coverage script
 import bitfield
+print bitfield.__file__
 
 import cPickle
 import pickle

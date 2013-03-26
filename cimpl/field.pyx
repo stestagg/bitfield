@@ -1,7 +1,10 @@
-# cython: profile=True
+# cython: profile=False
 # Imports and boilerplate
 import cython
 import zlib
+
+cimport cpython.buffer as pybuf
+from cython cimport view
 
 ctypedef Py_ssize_t size_t
 
@@ -27,23 +30,6 @@ cdef extern from "stdlib.h":
     void free(void*)
 
 
-cdef extern from "Python.h":
-        object PyString_FromStringAndSize(char *v, int len)
-        int PyString_AsStringAndSize(object ob, char **buffer,
-                                     Py_ssize_t *length) except -1
-        char *PyString_AsString(object string)
-
-
-### This is such a major missing feature of cython
-cdef object safe_char_to_str(char *buffer, size_t length):
-    return PyString_FromStringAndSize(buffer, length)
-
-cdef void safe_str_to_char(object string, char **buffer, size_t *length):
-    length[0] = len(string)
-    buffer[0] = <char *>malloc(length[0] + 1)
-    memcpy(buffer[0] , <char*>string, length[0])
-
-
 #start implementation specific stuff
 
 ctypedef unsigned long usize_t
@@ -64,7 +50,7 @@ cpdef usize_t USIZE_MAX = ((((<usize_t>1) << (CHUNK_BYTES * 8 - 1)) - 1)
                             + ((<usize_t>1) << (CHUNK_BYTES * 8 - 1))) # This is a full usize (lots of 11111111)
 cdef usize_t CHUNK_BITS = USIZE_MAX
 
-cdef usize_t PAGE_CHUNKS = (getpagesize() / CHUNK_BYTES) # Default one page to several system pages to reduce alloc
+cdef usize_t PAGE_CHUNKS = (getpagesize() / CHUNK_BYTES)
 cdef usize_t PAGE_FULL_COUNT = CHUNK_FULL_COUNT * PAGE_CHUNKS
 cdef usize_t PAGE_BYTES = CHUNK_BYTES * PAGE_CHUNKS
 
@@ -410,13 +396,6 @@ cdef class IdsPage:
             return not a == b
         raise NotImplementedError()
 
-    cdef CHUNK *get_bits(self):
-        if self.page_state == PAGE_EMPTY:
-            return EMPTY_PAGE_BITS
-        if self.page_state == PAGE_FULL:
-            return FULL_PAGE_BITS
-        return self.data
-
     cdef char *set_bits(self, char *start, char *end):
         cdef usize_t bytes_to_read = min(PAGE_BYTES, (end - start)+1)
         self._alloc()
@@ -425,10 +404,9 @@ cdef class IdsPage:
         return start + bytes_to_read
 
 
-
 # Markers must be the same length
-cdef str PICKLE_MARKER = "BF:"
-cdef str PICKLE_MARKER_zlib = "BZ:"
+cdef bytes PICKLE_MARKER = bytes("BF:")
+cdef bytes PICKLE_MARKER_zlib = bytes("BZ:")
 
 cdef class Bitfield:
     """Efficient storage, and set-like operations on groups of positive integers
@@ -650,45 +628,68 @@ cdef class Bitfield:
             new.pages.append(page.clone())
         return new
 
-    cdef str get_bits(self):
+    def __getbuffer__(self, Py_buffer *view, int flags):
         cdef IdsPage page
-        cdef char *buffer
-        cdef char * offset
-        cdef CHUNK *page_buffer
-        cdef str string
-        cdef usize_t length = len(self.pages) * PAGE_BYTES
+        cdef size_t partial_page_count = 0
+        cdef size_t buffer_len
+        cdef char * pointer
 
-        string = PyString_FromStringAndSize(NULL, length)
-        buffer = PyString_AsString(string)
-        for i in range(len(self.pages)):
-            page = self.pages[i]
-            page_buffer = page.get_bits()
-            offset = &buffer[i * PAGE_BYTES]
-            memcpy(offset, page_buffer, PAGE_BYTES)
-        return string
+        if flags & pybuf.PyBUF_WRITABLE:
+            raise ValueError("bitfields do not provide writable buffers")
+
+        if flags & pybuf.PyBUF_FORMAT:
+            view.format = "B"
+        
+        view.readonly = True
+        for page in self.pages:
+            if page.data:
+                partial_page_count += 1
+        
+        buffer_len = len(self.pages) + (PAGE_BYTES * partial_page_count)
+        view.len = buffer_len
+        view.buf = malloc(buffer_len)
+        view.itemsize = 1
+        view.suboffsets = NULL
+        pointer = <char *> view.buf
+        for page in self.pages:
+            pointer[0] = <unsigned char>page.page_state
+            pointer += 1
+            if page.data != NULL:
+                memcpy(<void *>pointer, <void*>page.data, PAGE_BYTES)
+                pointer += PAGE_BYTES
+
+        if flags & pybuf.PyBUF_ND or flags & pybuf.PyBUF_STRIDES:
+            view.ndim = 0
+            view.shape = NULL
+            view.strides = NULL
+
+    def __releasebuffer__(self, Py_buffer *view):
+        if view.buf == NULL:
+            return
+        free(view.buf)
 
     def pickle(self, compress=True):
         """Return a string representation of the bitfield"""
-        cdef str base = self.get_bits().rstrip("\00")
-        cdef str marker = PICKLE_MARKER
+        cdef bytes marker = PICKLE_MARKER
+        cdef bytes base = memoryview(self).tobytes()
         if compress:
             base = zlib.compress(base)
             marker = PICKLE_MARKER_zlib
-        return "%s%s" % (marker, base)
+        return marker + base
 
     @classmethod
-    def unpickle(cls, str data):
+    def unpickle(cls, bytes data):
         """Read a bitfield object from a string created by Bitfield.piclke"""
         cdef Bitfield new = Bitfield()
-        new.load_from_string(data)
+        new.load_from_bytes(data)
         return new
 
     def __reduce__(self):
         return (unpickle_bitfield, (self.pickle(), ))
 
     cdef load(Bitfield self, data):
-        if isinstance(data, basestring):
-            return self.load_from_string(data)
+        if isinstance(data, bytes):
+            return self.load_from_bytes(data)
         for item in data:
             if isinstance(item, (int, long)):
                 self.add(item)
@@ -696,22 +697,33 @@ cdef class Bitfield:
                 low, high = item
                 self.fill_range(low, high)
 
-    cdef load_from_string(self, data):
-        cdef str marker = data[:len(PICKLE_MARKER)]
-        data = data[len(PICKLE_MARKER):]
+    cdef load_from_bytes(self, bytes data):
+        cdef usize_t marker_len = len(PICKLE_MARKER)
+        cdef bytes marker = data[:marker_len]
         if marker != PICKLE_MARKER and marker != PICKLE_MARKER_zlib:
             raise ValueError("Could not unpickle data")
         if marker == PICKLE_MARKER_zlib:
-            data = zlib.decompress(data)
+            data = zlib.decompress(buffer(data)[marker_len:])
         cdef usize_t length = len(data)
-        cdef char *buffer = PyString_AsString(data)
-        cdef char *buffer_end = &buffer[length]
-        cdef char *current = buffer
+
+        cdef char *buf = data
         cdef IdsPage page
-        while current <= buffer_end:
+        cdef usize_t position = marker_len
+        cdef char page_state
+        while position <= length:
+            page_state = buf[position]
+            position += 1
             page = IdsPage()
+            if page_state == PAGE_FULL:
+                page.set_full()
+            elif page_state == PAGE_EMPTY:
+                pass
+            elif page_state == PAGE_PARTIAL:
+                page.set_bits(buf + position, buf + position + PAGE_BYTES)
+                position += PAGE_BYTES
+            else:
+                raise ValueError("Could not unpickle data")
             self.pages.append(page)
-            current = page.set_bits(current, buffer_end)
 
     cdef fill_range(self, low, high):
         """Add all numbers in range(low, high) to the bitfield, optimising the case where large
