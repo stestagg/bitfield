@@ -2,6 +2,8 @@
 # Imports and boilerplate
 import cython
 import zlib
+import sys
+
 
 cimport cpython.buffer as pybuf
 from cython cimport view
@@ -107,7 +109,7 @@ cdef class PageIter:
             self.chunk += 1
         return number
 
-    def __next__(self):
+    cdef _next(self):
         if self.chunk >= PAGE_CHUNKS:
                 raise StopIteration()
         if self.page.page_state == PAGE_EMPTY:
@@ -122,6 +124,9 @@ cdef class PageIter:
                 return self._advance()
             self._advance()           
 
+    def __next__(self):
+        return self._next()
+
 
 cdef class BitfieldIterator:
     """
@@ -129,7 +134,7 @@ cdef class BitfieldIterator:
     """
 
     cdef Bitfield bitfield
-    cdef object current_iter
+    cdef PageIter current_iter
     cdef usize_t current_page
     cdef usize_t offset
 
@@ -140,16 +145,21 @@ cdef class BitfieldIterator:
         self.offset = 0
 
     cdef _next_iter(self):
-        if self.current_page >= len(self.bitfield.pages):
-            raise StopIteration()
-        self.current_iter = iter(self.bitfield.pages[self.current_page])
+        while True:
+            if self.current_page >= len(self.bitfield.pages):
+                raise StopIteration()
+            self.current_iter = (<IdsPage>self.bitfield.pages[self.current_page])._iter()
+            if self.current_iter is not None:
+                return
+            self.current_page += 1
+            self.offset += PAGE_FULL_COUNT
 
     def __next__(self):
         if self.current_iter is None:
             self._next_iter()
         while True:
             try:
-                return self.current_iter.next() + self.offset
+                return self.current_iter._next() + self.offset
             except StopIteration:
                 self.current_page += 1
                 self.offset += PAGE_FULL_COUNT
@@ -199,10 +209,16 @@ cdef class IdsPage:
             free(self.data)
             self.data = NULL
 
-    def __iter__(self):
+    cdef _iter(self):
         if self.page_state == PAGE_EMPTY:
-            return iter(set())
+            return None
         return PageIter(self)
+
+    def __iter__(self):
+        cdef PageIter iterator = self._iter()
+        if iterator is None:
+            return iter(set())
+        return iterator
 
     cdef void calc_length(self):
         cdef CHUNK *chunk
@@ -405,8 +421,8 @@ cdef class IdsPage:
 
 
 # Markers must be the same length
-cdef bytes PICKLE_MARKER = bytes("BF:")
-cdef bytes PICKLE_MARKER_zlib = bytes("BZ:")
+cdef bytes PICKLE_MARKER = <char *>"BF:"
+cdef bytes PICKLE_MARKER_zlib = <char *>"BZ:"
 
 cdef class Bitfield:
     """Efficient storage, and set-like operations on groups of positive integers
@@ -703,14 +719,15 @@ cdef class Bitfield:
         if marker != PICKLE_MARKER and marker != PICKLE_MARKER_zlib:
             raise ValueError("Could not unpickle data")
         if marker == PICKLE_MARKER_zlib:
-            data = zlib.decompress(buffer(data)[marker_len:])
+            data = zlib.decompress(data[marker_len:])
         cdef usize_t length = len(data)
 
         cdef char *buf = data
         cdef IdsPage page
-        cdef usize_t position = marker_len
+        cdef usize_t position = 0
         cdef char page_state
-        while position <= length:
+        cdef char * write_position
+        while position < length:
             page_state = buf[position]
             position += 1
             page = IdsPage()
@@ -719,10 +736,11 @@ cdef class Bitfield:
             elif page_state == PAGE_EMPTY:
                 pass
             elif page_state == PAGE_PARTIAL:
-                page.set_bits(buf + position, buf + position + PAGE_BYTES)
+                write_position = page.set_bits(buf + position, buf + position + PAGE_BYTES)
+                assert write_position == buf + (position + PAGE_BYTES)
                 position += PAGE_BYTES
             else:
-                raise ValueError("Could not unpickle data")
+                raise ValueError("Could not unpickle data. Invalid page state: %s" % page_state)
             self.pages.append(page)
 
     cdef fill_range(self, low, high):
@@ -730,7 +748,7 @@ cdef class Bitfield:
         ranges are supplied"""
         cdef IdsPage page = None
         # start by allocating all the pages we need
-        self.add(high-1)
+        self.add(high - 1)
         # Find if there are any whole pages that can be allocated in one go
         lower_page_boundary = (low // PAGE_FULL_COUNT)
         if lower_page_boundary * PAGE_FULL_COUNT != low:
@@ -765,5 +783,5 @@ cdef class Bitfield:
         self.pages = []
 
 
-cpdef unpickle_bitfield(str data):
+cpdef unpickle_bitfield(bytes data):
     return Bitfield.unpickle(data)
