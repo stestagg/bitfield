@@ -9,3 +9,7 @@ install:
 
 script: 
  - nosetests test
+
+branches:
+  only:
+    - master
