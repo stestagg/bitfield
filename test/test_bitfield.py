@@ -1,9 +1,14 @@
 #!/usr/bin/python
 
+from __future__ import with_statement
+
 # For coverage script
 import bitfield
 
-import cPickle
+try:
+    import cPickle
+except ImportError:
+    import pickle as cPickle # python 3
 import pickle
 
 try:
@@ -11,6 +16,11 @@ try:
     import unittest2 as unittest
 except ImportError:
     import unittest
+
+try:
+    xrange(1)
+except NameError:
+    xrange = range # python3
 
 
 class BitfieldTest(unittest.TestCase):
@@ -125,7 +135,7 @@ class BitfieldTest(unittest.TestCase):
         odds = field(range(1, 90000, 2))
         evens = field(range(0, 90000, 2))
         full = odds ^ evens
-        self.assertEqual(list(full), range(90000))
+        self.assertSequenceEqual(list(full), range(90000))
         self.assertEqual(len(full), len(odds) + len(evens))
         self.assertEqual(len((odds ^ odds) | (evens ^ evens)), 0)
 
