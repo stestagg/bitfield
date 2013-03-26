@@ -3,6 +3,8 @@ bitfield [![Build Status](https://travis-ci.org/stestagg/bitfield.png)](https://
 
 A Cython implemented fast positive integer set implementation, optimised for sets of sequential numbers.
 
+__WARNING__ : The serialisation mechanism is not currently portable,  This will be fixed soon
+
 Installation
 ---------
 
@@ -37,7 +39,7 @@ Usage
 >>> len(large)
 1000000
 >>> len(large.pickle())
-147 # <150 bytes
+36 # <40 bytes
 ```
 
 Bitfields support most of the same operations/usage as regular sets, see the tests for examples.
