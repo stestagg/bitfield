@@ -8,19 +8,20 @@ import bitfield
 try:
     import cPickle
 except ImportError:
-    import pickle as cPickle # python 3
+    # For python 3
+    import pickle as cPickle # NOQA
 import pickle
 
 try:
     # Python 2.6 support
     import unittest2 as unittest
 except ImportError:
-    import unittest
+    import unittest # NOQA
 
 try:
     xrange(1)
 except NameError:
-    xrange = range # python3
+    xrange = range  # python3
 
 
 class BitfieldTest(unittest.TestCase):
@@ -72,12 +73,12 @@ class BitfieldTest(unittest.TestCase):
         for i in range(bits_per_chunk):
             p.add(i)
         with self.assertRaises(AssertionError):
-            p.add(i+1)
+            p.add(i + 1)
 
     def test_add_remove(self):
         b = bitfield.Bitfield()
         self.assertEqual(list(b), [])
-        for i in xrange(0, 1000000, 881):            
+        for i in xrange(0, 1000000, 881):
             b.add(i)
             self.assertEqual(list(b), [i])
             b.remove(i)
@@ -125,9 +126,9 @@ class BitfieldTest(unittest.TestCase):
         self.assertEqual(a.symmetric_difference(b), field([1]))
         self.assertEqual(a ^ b, a)
         b.add(2)
-        self.assertEqual(list(a ^ b), list(field([1,2])))
+        self.assertEqual(list(a ^ b), list(field([1, 2])))
 
-        full = field([[1, 100000]]) 
+        full = field([[1, 100000]])
         full_set = set(range(1, 100000))
         self.assertEqual(set(full), full_set)
         self.assertEqual(set(full ^ a), full_set - set([1]))
@@ -146,10 +147,20 @@ class BitfieldTest(unittest.TestCase):
         size = one_million * 1000
 
         field1 = bitfield.Bitfield([[0, size]])
-        field2 = bitfield.Bitfield([[size, size*2]])
+        field2 = bitfield.Bitfield([[size, size * 2]])
         self.assertEqual(len(field1), size)
         self.assertEqual(len(field2), size)
         self.assertEqual(len(field1 | field2), size * 2)
+
+    def test_init_with_small_ranges(self):
+        a = bitfield.Bitfield(((0, 1), (3, 10),),)
+        self.assertSequenceEqual(list(a), [0, 3, 4, 5, 6, 7, 8, 9])
+
+    def test_init_with_large_ranges(self):
+        a = bitfield.Bitfield(((0, 20000), (30000, 100000)))
+        self.assertEqual(len(a), 90000)
+        self.assertEqual(max(a), 99999)
+        self.assertEqual(min(a), 0)
 
 
 class SetEqualityTest(unittest.TestCase):
@@ -167,7 +178,7 @@ class SetEqualityTest(unittest.TestCase):
         set_b = set(b)
         bitfield_result = func(a, b)
         set_result = func(set_a, set_b)
-        self.assertEqual(bitfield_result, set_result)        
+        self.assertEqual(bitfield_result, set_result)
 
     def _test_methods(self, a, b):
         a_pure = a.copy()
@@ -205,7 +216,7 @@ class SetEqualityTest(unittest.TestCase):
         def nums(*numbers):
             return list([page_numbers[n] for n in numbers])
         page_max = bitfield.get_all_sizes()["PAGE_MAX"]
-        page_numbers = [5 + (page_max * i ) for i in range(10)]
+        page_numbers = [5 + (page_max * i) for i in range(10)]
         a = bitfield.Bitfield(nums(0, 2))
         b = bitfield.Bitfield(nums(1, 3))
         self._test_methods(a, b)
@@ -213,12 +224,11 @@ class SetEqualityTest(unittest.TestCase):
 
     def test_empty_full(self):
         page_max = bitfield.get_all_sizes()["PAGE_MAX"]
-        page_numbers = [5 + (page_max * i ) for i in range(10)]
         a = bitfield.Bitfield([[0, page_max]])
         b = bitfield.Bitfield()
         self._test_methods(a, b)
         self._test_methods(b, a)
-        
+
 
 if __name__ == "__main__":
     unittest.main()

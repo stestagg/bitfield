@@ -52,7 +52,7 @@ cpdef usize_t USIZE_MAX = ((((<usize_t>1) << (CHUNK_BYTES * 8 - 1)) - 1)
                             + ((<usize_t>1) << (CHUNK_BYTES * 8 - 1))) # This is a full usize (lots of 11111111)
 cdef usize_t CHUNK_BITS = USIZE_MAX
 
-cdef usize_t PAGE_CHUNKS = (getpagesize() / CHUNK_BYTES)
+cdef usize_t PAGE_CHUNKS = !!!!
 cdef usize_t PAGE_FULL_COUNT = CHUNK_FULL_COUNT * PAGE_CHUNKS
 cdef usize_t PAGE_BYTES = CHUNK_BYTES * PAGE_CHUNKS
 
@@ -748,20 +748,16 @@ cdef class Bitfield:
         ranges are supplied"""
         cdef IdsPage page = None
         # start by allocating all the pages we need
-        assert high > 0
         self.add(high - 1)
         # Find if there are any whole pages that can be allocated in one go
         lower_page_boundary = (low // PAGE_FULL_COUNT)
         if lower_page_boundary * PAGE_FULL_COUNT != low:
             lower_page_boundary += 1
         upper_page_boundary = high // PAGE_FULL_COUNT
-        if upper_page_boundary < lower_page_boundary:
-            for num in range(low, high):
-                self.add(num)
-            return
-        for page_num in range(lower_page_boundary, upper_page_boundary):
-            page = self.pages[page_num]
-            page.set_full()
+        if upper_page_boundary >= lower_page_boundary:
+            for page_num in range(lower_page_boundary, upper_page_boundary):
+                page = self.pages[page_num]
+                page.set_full()
         for num in range(low, lower_page_boundary * PAGE_FULL_COUNT):
             self.add(num)
         for num in range(upper_page_boundary * PAGE_FULL_COUNT, high):
