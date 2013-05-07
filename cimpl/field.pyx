@@ -31,20 +31,11 @@ cdef extern from "stdlib.h":
     void *realloc(void *, size_t)
     void free(void*)
 
-cdef extern from "field.h":
-    ctypedef unsigned int usize_t
-    ctypedef unsigned int CHUNK # (Chunk must always be <= usize_t)
-    const usize_t CHUNK_BYTES
-    const usize_t CHUNK_FULL_COUNT
-    const usize_t CHUNK_SHIFT
-    const usize_t CHUNK_MASK
-    const usize_t USIZE_MAX
-    const usize_t CHUNK_BITS
-    const usize_t PAGE_CHUNKS
-    const usize_t PAGE_FULL_COUNT
-    const usize_t PAGE_BYTES
-    const usize_t EMPTY_CHUNK_BITS
-    const usize_t FULL_CHUNK_BITS
+
+#start implementation specific stuff
+
+ctypedef unsigned long usize_t
+ctypedef usize_t CHUNK # (Chunk must always be <= usize_t)
 
 cdef usize_t log2(usize_t num):
     cdef usize_t index = 0
@@ -53,11 +44,24 @@ cdef usize_t log2(usize_t num):
         index += 1
     return index - 1
 
+cpdef usize_t CHUNK_BYTES = cython.sizeof(CHUNK)
+cdef usize_t CHUNK_FULL_COUNT = 8 * CHUNK_BYTES # Count of 1s in a full chunk = 32 (assuming 32-bit size_t)
+cdef usize_t CHUNK_SHIFT = log2(CHUNK_FULL_COUNT) # Ammount to shift a number to look up which chunk to use
+cdef usize_t CHUNK_MASK = (1 << CHUNK_SHIFT) - 1 # When looking up a chunk, only examine the first 5 bits
+cpdef usize_t USIZE_MAX = ((((<usize_t>1) << (CHUNK_BYTES * 8 - 1)) - 1)
+                            + ((<usize_t>1) << (CHUNK_BYTES * 8 - 1))) # This is a full usize (lots of 11111111)
+cdef usize_t CHUNK_BITS = USIZE_MAX
+
+cdef usize_t PAGE_CHUNKS = (getpagesize() / CHUNK_BYTES)
+cdef usize_t PAGE_FULL_COUNT = CHUNK_FULL_COUNT * PAGE_CHUNKS
+cdef usize_t PAGE_BYTES = CHUNK_BYTES * PAGE_CHUNKS
 
 DEF PAGE_EMPTY = 3
 DEF PAGE_PARTIAL = 1
 DEF PAGE_FULL = 2
 
+cdef CHUNK EMPTY_CHUNK_BITS = 0
+cdef CHUNK FULL_CHUNK_BITS = CHUNK_BITS
 
 
 def get_all_sizes():
