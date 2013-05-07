@@ -65,16 +65,6 @@ class BitfieldTest(unittest.TestCase):
         self.assertFalse(3 in b)
         self.assertEqual(list(b), [0, 1, 2])
 
-    def test_filling_page(self):
-        p = bitfield.IdsPage()
-        self.assertEqual(p.count, 0)
-        chunk_bytes, page_chunks = bitfield.get_sizes()
-        bits_per_chunk = page_chunks * chunk_bytes * 8
-        for i in range(bits_per_chunk):
-            p.add(i)
-        with self.assertRaises(AssertionError):
-            p.add(i + 1)
-
     def test_add_remove(self):
         b = bitfield.Bitfield()
         self.assertEqual(list(b), [])
