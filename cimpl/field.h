@@ -2,7 +2,7 @@
 typedef size_t usize_t;
 typedef usize_t CHUNK;
 
-#define CHUNK_BYTES  sizeof(usize_t)  // Say: CHUNK_BYTES = 2  <>  CHUNK_BYTES = 8
+#define CHUNK_BYTES sizeof(usize_t)  // Say: CHUNK_BYTES = 2  <>  CHUNK_BYTES = 8
 #define CHUNK_FULL_COUNT 8 * CHUNK_BYTES // Count of 1s in a full chunk = 32 (assuming 32-bit size_t)
 	//Then: CHUNK_FULL_COUNT = 11111111 11111111 = 16  <> CHUNK_FULL_COUNT = ... = 64
 
@@ -14,7 +14,7 @@ typedef usize_t CHUNK;
                                + (((usize_t)1) << (CHUNK_BYTES * 8 - 1))) // This is a full usize (lots of 11111111)
 #define CHUNK_BITS USIZE_MAX
 
-#define PAGE_CHUNKS 16
+#define PAGE_CHUNKS 1024
 #define PAGE_FULL_COUNT (CHUNK_FULL_COUNT * PAGE_CHUNKS)
 #define PAGE_BYTES (CHUNK_BYTES * PAGE_CHUNKS)
 
