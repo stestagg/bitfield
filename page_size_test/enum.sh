@@ -1,8 +1,10 @@
 #!/bin/bash
 
-./test.sh 1
+./test.sh 4
 
-for i in $(seq 4 4 70); do
+set -e
+
+for i in $(seq 64 64 4096); do
 
 ./test.sh $i
 
