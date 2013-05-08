@@ -1,9 +1,11 @@
 #!/bin/bash
 
-./test.sh 1
-./test.sh 2
+#./test.sh 1
+#./test.sh 2
 
-for i in $(seq 4 4 512); do
+set -e
+
+for i in $(seq 4 16 4096); do
 
 ./test.sh $i
 

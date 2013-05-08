@@ -1,4 +1,4 @@
-# cython: profile=True
+# cython: profile=False
 # Imports and boilerplate
 import cython
 import zlib
@@ -127,11 +127,13 @@ cdef class BitfieldIterator:
         self.current_iter = None
         self.offset = 0
 
-    cdef _next_iter(self):
+    cdef inline _next_iter(self):
+        cdef IdsPage next_page
         while True:
             if self.current_page >= len(self.bitfield.pages):
                 raise StopIteration()
-            self.current_iter = (<IdsPage>self.bitfield.pages[self.current_page])._iter()
+            next_page = self.bitfield.pages[self.current_page]
+            self.current_iter = next_page._iter()
             if self.current_iter is not None:
                 return
             self.current_page += 1
@@ -140,11 +142,13 @@ cdef class BitfieldIterator:
     def __next__(self):
         cdef usize_t offset
         cdef usize_t next_item
+        cdef PageIter the_iterator
         if self.current_iter is None:
             self._next_iter()
         while True:
             try:
-                next_item = self.current_iter._next()
+                the_iterator = self.current_iter
+                next_item = the_iterator._next()
                 offset = self.offset
                 return next_item + offset
             except StopIteration:
@@ -239,7 +243,7 @@ cdef class IdsPage:
         return self.data[chunk_index] & chunk_bit != 0
 
 
-    cdef add(self, usize_t number):
+    cdef void add(self, usize_t number):
         cdef usize_t chunk_index = number >> CHUNK_SHIFT
         cdef usize_t chunk_bit = (<usize_t>1) << (number & CHUNK_MASK)
 
@@ -258,9 +262,9 @@ cdef class IdsPage:
         self._count += 1
         if self._count == PAGE_FULL_COUNT:
             self._dealloc(PAGE_FULL)
-        return number
+        return
 
-    cdef remove(self, usize_t number):
+    cdef void remove(self, usize_t number):
         cdef usize_t chunk_index = number >> CHUNK_SHIFT
         cdef usize_t chunk_bit = (<usize_t>1) << (number & CHUNK_MASK)
 
@@ -279,9 +283,9 @@ cdef class IdsPage:
         self._count -= 1
         if self._count == 0:
             self._dealloc(PAGE_EMPTY)
-        return number
+        return
 
-    cdef update(self, IdsPage other):
+    cdef void update(self, IdsPage other):
         if other.page_state == PAGE_EMPTY:
             return
         if self.page_state == PAGE_FULL:
@@ -295,7 +299,7 @@ cdef class IdsPage:
             self.data[chunk_index] |= other.data[chunk_index]
         self.calc_length()
 
-    cdef intersection_update(self, IdsPage other):
+    cdef void intersection_update(self, IdsPage other):
         if other.page_state == PAGE_EMPTY:
             self._dealloc(PAGE_EMPTY)
         elif other.page_state == PAGE_FULL:
@@ -317,7 +321,7 @@ cdef class IdsPage:
         else:
             raise AssertionError("Invalid page state")
 
-    cdef difference_update(self, IdsPage other):
+    cdef void difference_update(self, IdsPage other):
         if other.page_state == PAGE_EMPTY:
             return
         if self.page_state == PAGE_FULL:
@@ -331,7 +335,7 @@ cdef class IdsPage:
             self.data[chunk_index] &= ~other.data[chunk_index]
         self.calc_length()
 
-    cdef _state(self):
+    cdef inline const char* _state(self):
         if self.page_state == PAGE_EMPTY:
             return "EMPTY"
         if self.page_state == PAGE_FULL:
@@ -410,6 +414,7 @@ cdef class IdsPage:
 # Markers must be the same length
 cdef bytes PICKLE_MARKER = <char *>"BF:"
 cdef bytes PICKLE_MARKER_zlib = <char *>"BZ:"
+
 
 cdef class Bitfield:
     """Efficient storage, and set-like operations on groups of positive integers

@@ -17,6 +17,7 @@ def test():
         gg.discard(i)
     aa = bf.Bitfield(evil)
     cc = ff - aa
+    assert cc
     hh = bf.Bitfield()
     for i in xrange(0, 2000000, 2):
         hh.add(i)
@@ -24,26 +25,35 @@ def test():
     return stop - start
 
 
-def out(data):
-    sys.stdout.write(str(data))
+ONE_MILLION = 1000000
+SIZE = ONE_MILLION * 1000
+
+
+def test2():
+    start = time.clock()
+    field1 = bf.Bitfield([[0, SIZE]])
+    field2 = bf.Bitfield([[SIZE, SIZE * 2]])
+    assert len(field1) == SIZE
+    assert len(field2) == SIZE
+    field3 = field1 | field2
+    assert len(field3) == SIZE * 2
+    end = time.clock()
+    return end - start
+
+
+def out(a):
+    sys.stdout.write(str(a))
     sys.stdout.write(", ")
     sys.stdout.flush()
 
 
 def main():
     chunks = bf.get_all_sizes()["PAGE_CHUNKS"]
-    out(chunks)
-    num = 0
-    tot = 0
-    for i in range(8):
-        t = test()
-        out(t)
-        num += 1
-        tot += t
-        if i == 4:
-            time.sleep(0.5)
-    out(tot/num)
-    print
+    for i in range(3):
+        out(chunks)
+        out(test())
+        out(test2())
+        print
 
 if __name__ == "__main__":
     main()

@@ -14,7 +14,7 @@ typedef usize_t CHUNK;
                                + (((usize_t)1) << (CHUNK_BYTES * 8 - 1))) // This is a full usize (lots of 11111111)
 #define CHUNK_BITS USIZE_MAX
 
-#define PAGE_CHUNKS 16
+#define PAGE_CHUNKS 64
 #define PAGE_FULL_COUNT (CHUNK_FULL_COUNT * PAGE_CHUNKS)
 #define PAGE_BYTES (CHUNK_BYTES * PAGE_CHUNKS)
 

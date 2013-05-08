@@ -14,6 +14,10 @@ gcc -std=c99 -bundle -Os -undefined dynamic_lookup -Wl,-F. -arch x86_64 bf.c \
 	  -I/System/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7 \
 	  -dynamic -fno-common -fno-strict-aliasing -fwrapv -mno-fused-madd -o bf.so 2>/dev/null
 
+rm ./field.h
+rm ./bf.pyx
+rm ./bf.c
+
 export PYTHONPATH=.
 
 python test.py
