@@ -12,6 +12,7 @@ ext_modules = [
               ["cimpl/field.pyx"],
               extra_compile_args=["-g"],
               extra_link_args=["-g"],
+              depends=["cimpl/field.h"]
               )
 ]
 
