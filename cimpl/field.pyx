@@ -1,4 +1,4 @@
-# cython: profile=False
+# cython: profile=True
 # Imports and boilerplate
 import cython
 import zlib
@@ -34,7 +34,7 @@ cdef extern from "stdlib.h":
 
 cdef extern from "field.h":
     ctypedef unsigned int usize_t
-    ctypedef unsigned int CHUNK # (Chunk must always be <= usize_t)
+    ctypedef unsigned int CHUNK
     const usize_t CHUNK_BYTES
     const usize_t CHUNK_FULL_COUNT
     const usize_t CHUNK_SHIFT
@@ -66,9 +66,6 @@ def get_all_sizes():
         PAGE_MAX=PAGE_FULL_COUNT
     )
 
-def get_sizes():
-    return CHUNK_BYTES, PAGE_CHUNKS
-
 
 cdef class PageIter:
     cdef usize_t chunk
@@ -82,7 +79,7 @@ cdef class PageIter:
         self.bit_index = 0
         self.number = 0
 
-    cdef inline usize_t _advance(self):
+    cdef usize_t _advance(self):
         cdef usize_t number = self.number
         self.number += 1
         self.bit_index += 1
@@ -97,7 +94,7 @@ cdef class PageIter:
 
     cdef _next(self):
         if self.chunk >= PAGE_CHUNKS:
-                raise StopIteration()
+            raise StopIteration()
         if self.page.page_state == PAGE_EMPTY:
             raise StopIteration()
         elif self.page.page_state == PAGE_FULL:
@@ -141,13 +138,14 @@ cdef class BitfieldIterator:
             self.offset += PAGE_FULL_COUNT
 
     def __next__(self):
-        cdef usize_t offset = self.offset
+        cdef usize_t offset
         cdef usize_t next_item
         if self.current_iter is None:
             self._next_iter()
         while True:
             try:
                 next_item = self.current_iter._next()
+                offset = self.offset
                 return next_item + offset
             except StopIteration:
                 self.current_page += 1

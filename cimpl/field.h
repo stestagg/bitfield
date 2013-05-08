@@ -2,7 +2,7 @@
 typedef size_t usize_t;
 typedef usize_t CHUNK;
 
-#define CHUNK_BYTES  sizeof(usize_t)  // Say: CHUNK_BYTES = 2  <>  CHUNK_BYTES = 8
+#define CHUNK_BYTES sizeof(usize_t)  // Say: CHUNK_BYTES = 2  <>  CHUNK_BYTES = 8
 #define CHUNK_FULL_COUNT 8 * CHUNK_BYTES // Count of 1s in a full chunk = 32 (assuming 32-bit size_t)
 	//Then: CHUNK_FULL_COUNT = 11111111 11111111 = 16  <> CHUNK_FULL_COUNT = ... = 64
 
