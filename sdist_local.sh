@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=$(env PYTHONPATH=. python -c 'import setup; print setup.VERSION')
+VERSION=$(env PYTHONPATH=. python -c 'import setup; print(setup.VERSION)')
 
 TEMP_DIR=$(mktemp -d)
 ./setup.py sdist -d $TEMP_DIR
