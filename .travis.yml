@@ -3,12 +3,14 @@ python:
  - "2.7"
  - "3.3"
 
-install: 
- - pip install cython
- - python setup.py install
+install:
+ - pip install Cython
+ - python setup.py sdist
+ - ./sdist_local.sh
+ - pip install package.tar.gz
 
-script: 
- - nosetests test
+script:
+ - "cd test && python test_bitfield.py"
 
 branches:
   only:
