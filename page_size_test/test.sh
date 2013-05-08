@@ -4,7 +4,9 @@ set -e
 
 if [ -e bf.so ]; then rm bf.so; fi
 
-cat field_template.pyx | sed s/!!!!/$1/ > bf.pyx
+#cat field_template.pyx | sed s/!!!!/$1/ > bf.pyx
+cat ../cimpl/field.h | sed "s:PAGE_CHUNKS [0-9]*:PAGE_CHUNKS $1:" > ./field.h
+cp ../cimpl/field.pyx bf.pyx
 
 cython -2 bf.pyx -o bf.c
 

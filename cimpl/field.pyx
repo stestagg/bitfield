@@ -32,36 +32,24 @@ cdef extern from "stdlib.h":
     void free(void*)
 
 
-#start implementation specific stuff
-
-ctypedef unsigned long usize_t
-ctypedef usize_t CHUNK # (Chunk must always be <= usize_t)
-
-cdef usize_t log2(usize_t num):
-    cdef usize_t index = 0
-    while num:
-        num >>= 1
-        index += 1
-    return index - 1
-
-cpdef usize_t CHUNK_BYTES = cython.sizeof(CHUNK)
-cdef usize_t CHUNK_FULL_COUNT = 8 * CHUNK_BYTES # Count of 1s in a full chunk = 32 (assuming 32-bit size_t)
-cdef usize_t CHUNK_SHIFT = log2(CHUNK_FULL_COUNT) # Ammount to shift a number to look up which chunk to use
-cdef usize_t CHUNK_MASK = (1 << CHUNK_SHIFT) - 1 # When looking up a chunk, only examine the first 5 bits
-cpdef usize_t USIZE_MAX = ((((<usize_t>1) << (CHUNK_BYTES * 8 - 1)) - 1)
-                            + ((<usize_t>1) << (CHUNK_BYTES * 8 - 1))) # This is a full usize (lots of 11111111)
-cdef usize_t CHUNK_BITS = USIZE_MAX
-
-cdef usize_t PAGE_CHUNKS = (getpagesize() / CHUNK_BYTES)
-cdef usize_t PAGE_FULL_COUNT = CHUNK_FULL_COUNT * PAGE_CHUNKS
-cdef usize_t PAGE_BYTES = CHUNK_BYTES * PAGE_CHUNKS
+cdef extern from "field.h":
+    ctypedef unsigned int usize_t
+    ctypedef unsigned int CHUNK # (Chunk must always be <= usize_t)
+    const usize_t CHUNK_BYTES
+    const usize_t CHUNK_FULL_COUNT
+    const usize_t CHUNK_SHIFT
+    const usize_t CHUNK_MASK
+    const usize_t USIZE_MAX
+    const usize_t CHUNK_BITS
+    const usize_t PAGE_CHUNKS
+    const usize_t PAGE_FULL_COUNT
+    const usize_t PAGE_BYTES
+    const usize_t EMPTY_CHUNK_BITS
+    const usize_t FULL_CHUNK_BITS
 
 DEF PAGE_EMPTY = 3
 DEF PAGE_PARTIAL = 1
 DEF PAGE_FULL = 2
-
-cdef CHUNK EMPTY_CHUNK_BITS = 0
-cdef CHUNK FULL_CHUNK_BITS = CHUNK_BITS
 
 
 def get_all_sizes():
@@ -94,13 +82,17 @@ cdef class PageIter:
         self.bit_index = 0
         self.number = 0
 
-    cdef usize_t _advance(self):
+    cdef inline usize_t _advance(self):
         cdef usize_t number = self.number
         self.number += 1
         self.bit_index += 1
         if self.bit_index >= CHUNK_FULL_COUNT:
             self.bit_index = 0
             self.chunk += 1
+            if self.page.page_state == PAGE_PARTIAL:
+                while self.chunk < PAGE_CHUNKS and self.page.data[self.chunk] == 0:
+                    self.chunk += 1
+                    self.number += CHUNK_FULL_COUNT
         return number
 
     cdef _next(self):
@@ -116,7 +108,7 @@ cdef class PageIter:
             test = (self.page.data[self.chunk] & ((<usize_t>1) << self.bit_index))
             if test:
                 return self._advance()
-            self._advance()           
+            self._advance()
 
     def __next__(self):
         return self._next()
@@ -149,11 +141,14 @@ cdef class BitfieldIterator:
             self.offset += PAGE_FULL_COUNT
 
     def __next__(self):
+        cdef usize_t offset = self.offset
+        cdef usize_t next_item
         if self.current_iter is None:
             self._next_iter()
         while True:
             try:
-                return self.current_iter._next() + self.offset
+                next_item = self.current_iter._next()
+                return next_item + offset
             except StopIteration:
                 self.current_page += 1
                 self.offset += PAGE_FULL_COUNT
@@ -770,13 +765,16 @@ cdef class Bitfield:
         if upper_page_boundary < lower_page_boundary:
             page = self.pages[upper_page_boundary]
             for num in range(low - offset, high - offset):
-                self.add(num)
+                page.add(num)
             return
         for page_num in range(lower_page_boundary, upper_page_boundary):
             page = self.pages[page_num]
             page.set_full()
-        for num in range(low, lower_page_boundary * PAGE_FULL_COUNT):
-            self.add(num)
+        if lower_page_boundary > 0:
+            offset = (lower_page_boundary - 1) * PAGE_FULL_COUNT
+            page = self.pages[lower_page_boundary - 1]
+            for num in range(low - offset, (lower_page_boundary * PAGE_FULL_COUNT) - offset):
+                page.add(num)
         for num in range(upper_page_boundary * PAGE_FULL_COUNT, high):
             self.add(num)
 
