@@ -11,7 +11,3 @@ install:
 
 script:
  - "cd test && python test_bitfield.py"
-
-branches:
-  only:
-    - master
