@@ -10,19 +10,35 @@ from cython cimport view
 
 ctypedef Py_ssize_t size_t
 
-cdef extern:
-    int __builtin_popcountl(size_t)
-    int __builtin_popcount(size_t)
-
-
 cdef extern from "string.h":
     void * memset(void *, int, size_t)
     void * memcpy(void*, void*, size_t)
     int memcmp(void*, void*, size_t)
 
+    
+IF UNAME_SYSNAME == "Windows":
 
-cdef extern from "unistd.h":
-    int getpagesize()
+    cdef extern from "Windows.h":
+        ctypedef int DWORD
+        ctypedef void * LPSYSTEM_INFO
+        ctypedef struct SYSTEM_INFO:
+            DWORD dwPageSize
+        void GetSystemInfo(LPSYSTEM_INFO data)
+
+    cdef extern from "popcount.h":
+        int __builtin_popcountl(unsigned int)
+
+    cdef getpagesize():
+        cdef SYSTEM_INFO system_info
+        GetSystemInfo(cython.address(system_info))
+        return system_info.dwPageSize
+ELSE    :
+
+    cdef extern:
+        int __builtin_popcountl(size_t)
+
+    cdef extern from "unistd.h":
+        int getpagesize()
 
 
 cdef extern from "stdlib.h":
