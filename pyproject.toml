@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools >= 1", "cython"]
+#build-backend = "setuptools.build_meta"
+
+[project]
+name = "bitfield"
+dynamic = ["version"]
+classifiers = [
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "License :: OSI Approved :: MIT License",
+]
+authors = [
+  {name = "Steve Stagg", email = "stestagg@gmail.com"}
+]
+readme="README.md"
+description="A Cython fast compressed number set"
+
+
+[project.urls]
+Homepage = "http://github.com/stestagg/bitfield"
+
+[tool.setuptools]
+packages=[]

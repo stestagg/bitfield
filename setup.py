@@ -21,14 +21,6 @@ if __name__ == "__main__":
     setup(
         name="bitfield",
         version=VERSION,
-        license="BSD",
-
-        description="A Cython fast compressed number set",
-        author="Steve Stagg",
-        author_email="stestagg@gmail.com",
-
-        url="http://github.com/stestagg/bitfield",
-
         classifiers=[
             'Development Status :: 4 - Beta',
             'Intended Audience :: Developers',
