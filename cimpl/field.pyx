@@ -460,7 +460,7 @@ cdef class Bitfield:
 
     cpdef add(self, usize_t number):
         """Add a positive integer to the bitfield"""
-        cdef usize_t page = number / PAGE_FULL_COUNT
+        cdef usize_t page = <usize_t>(number / PAGE_FULL_COUNT)
         cdef usize_t page_index = number % PAGE_FULL_COUNT
         self._ensure_page_exists(page)
         cdef IdsPage the_page = self.pages[page]
@@ -469,7 +469,7 @@ cdef class Bitfield:
     cpdef remove(Bitfield self, usize_t number):
         """Remove a positive integer from the bitfield
         If the integer does not exist in the field, raise a KeyError"""
-        cdef usize_t page_no = number / PAGE_FULL_COUNT
+        cdef usize_t page_no = <usize_t>(number / PAGE_FULL_COUNT)
         cdef usize_t page_index = number % PAGE_FULL_COUNT
         if page_no >= len(self.pages):
             raise KeyError()
@@ -483,7 +483,7 @@ cdef class Bitfield:
     cpdef discard(Bitfield self, usize_t number):
         """Remove a positive integer from the bitfield if it is a member.
         If the element is not a member, do nothing."""
-        cdef usize_t page = number / PAGE_FULL_COUNT
+        cdef usize_t page = <usize_t>(number / PAGE_FULL_COUNT)
         if page >= len(self.pages):
             return
         cdef usize_t page_index = number % PAGE_FULL_COUNT
