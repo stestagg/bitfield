@@ -1,0 +1,15 @@
+name: Build & Test
+
+on: [push, pull_request]
+
+jobs:
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - id: build
+        uses: OpenAstronomy/build-python-dist@v1
+        with:
+          test_extras: test
+          test_command: pytest --pyargs test_package
