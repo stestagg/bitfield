@@ -1,4 +1,4 @@
-bitfield [![Build Status](https://travis-ci.org/stestagg/bitfield.png)](https://travis-ci.org/stestagg/bitfield)
+bitfield
 ========
 
 A Cython implemented fast positive integer set implementation, optimised for sets of sequential numbers.
